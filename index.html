@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>摩斯密碼特快車 (Morse Code Express)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap');
+
+        body {
+            font-family: 'Courier Prime', monospace;
+            background-color: #2c1a0d;
+            color: #d4b886;
+            touch-action: manipulation;
+        }
+
+        .paper-bg {
+            background-color: #e6d5b8;
+            color: #3b2a1a;
+            box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.2), 0 5px 15px rgba(0, 0, 0, 0.5);
+            border: 2px solid #8b5a2b;
+        }
+
+        .brass-border {
+            border: 4px solid #b5a642;
+            box-shadow: inset 0 0 10px rgba(181, 166, 66, 0.5), 0 0 10px rgba(0, 0, 0, 0.8);
+            background: linear-gradient(135deg, #3a2511 0%, #1a0f05 100%);
+        }
+
+        .telegraph-btn {
+            background: linear-gradient(to bottom, #d4af37, #996515);
+            border-radius: 50%;
+            box-shadow: 0 12px 0 #5c3a21, 0 20px 25px rgba(0, 0, 0, 0.6), inset 0 2px 5px rgba(255, 255, 255, 0.4);
+            transition: transform 0.05s, box-shadow 0.05s;
+            position: relative;
+        }
+
+        .telegraph-btn::after {
+            content: '';
+            position: absolute;
+            top: 10%;
+            left: 10%;
+            width: 80%;
+            height: 80%;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .telegraph-btn.pressed {
+            transform: translateY(12px);
+            box-shadow: 0 0 0 #5c3a21, 0 5px 10px rgba(0, 0, 0, 0.6), inset 0 2px 5px rgba(255, 255, 255, 0.4);
+        }
+
+        .train-scene {
+            position: relative;
+            height: 120px;
+            background: #111;
+            overflow: hidden;
+            border-radius: 8px;
+            border: 2px solid #5c3a21;
+        }
+
+        .track {
+            position: absolute;
+            bottom: 0;
+            width: 200%;
+            height: 15px;
+            background: repeating-linear-gradient(90deg, #5c3a21 0, #5c3a21 10px, #8b5a2b 10px, #8b5a2b 20px);
+            animation: scrollTrack 0.8s linear infinite;
+        }
+
+        .train {
+            font-size: 50px;
+            position: absolute;
+            bottom: 10px;
+            left: 20px;
+            animation: bounceTrain 0.3s alternate infinite;
+            filter: drop-shadow(2px 4px 6px rgba(0, 0, 0, 0.5));
+        }
+
+        .smoke {
+            position: absolute;
+            bottom: 60px;
+            left: 70px;
+            font-size: 20px;
+            opacity: 0;
+            animation: smokeAnim 1s linear infinite;
+        }
+
+        .smoke:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        .smoke:nth-child(4) {
+            animation-delay: 0.6s;
+        }
+
+        @keyframes scrollTrack {
+            from {
+                transform: translateX(0);
+            }
+
+            to {
+                transform: translateX(-50%);
+            }
+        }
+
+        @keyframes bounceTrain {
+            from {
+                transform: translateY(0);
+            }
+
+            to {
+                transform: translateY(-3px);
+            }
+        }
+
+        @keyframes smokeAnim {
+            0% {
+                transform: translate(0, 0) scale(1);
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: translate(-30px, -40px) scale(2);
+                opacity: 0;
+            }
+        }
+
+        .paused .track,
+        .paused .train,
+        .paused .smoke {
+            animation-play-state: paused !important;
+        }
+
+        .game-over-flash {
+            animation: flashRed 0.5s;
+        }
+
+        .success-flash {
+            animation: flashGreen 0.5s;
+        }
+
+        @keyframes flashRed {
+            0% {
+                background-color: rgba(255, 0, 0, 0.5);
+            }
+
+            100% {
+                background-color: transparent;
+            }
+        }
+
+        @keyframes flashGreen {
+            0% {
+                background-color: rgba(74, 222, 128, 0.5);
+            }
+
+            100% {
+                background-color: transparent;
+            }
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .nav-btn.active {
+            background-color: #8b5a2b;
+            color: #fff;
+            border-color: #d4b886;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col items-center py-6 px-4">
+
+    <header class="text-center mb-6">
+        <h1 class="text-3xl md:text-4xl font-bold tracking-wider" style="text-shadow: 2px 2px 4px #000;">🚂 摩斯密碼特快車 📜
+        </h1>
+        <p class="text-sm mt-2 opacity-80">1917 首席電報員模擬器</p>
+    </header>
+
+    <div class="max-w-4xl w-full brass-border rounded-xl p-4 md:p-6 flex flex-col gap-6">
+
+        <nav class="flex justify-center gap-2 border-b border-yellow-700/50 pb-4 flex-wrap">
+            <button onclick="switchTab('dictionary')" id="nav-dictionary"
+                class="nav-btn active px-4 py-2 border border-yellow-700 rounded hover:bg-yellow-900 transition font-bold">📖
+                密碼電報局</button>
+            <button onclick="switchTab('practice')" id="nav-practice"
+                class="nav-btn px-4 py-2 border border-yellow-700 rounded hover:bg-yellow-900 transition font-bold">📻
+                自由發報室</button>
+            <button onclick="switchTab('game')" id="nav-game"
+                class="nav-btn px-4 py-2 border border-yellow-700 rounded hover:bg-yellow-900 transition font-bold">🛤️
+                特快車任務</button>
+        </nav>
+
+        <!-- 模式 A：密碼電報局 -->
+        <div id="tab-dictionary" class="tab-content active">
+            <div class="paper-bg p-6 rounded-lg flex flex-col">
+                <h2 class="text-2xl font-bold border-b border-amber-900 pb-2 mb-4 text-center">標準密碼對照表與翻譯器</h2>
+                <div class="flex flex-col md:flex-row gap-4 mb-4">
+                    <input type="text" id="dict-input" placeholder="輸入英文字母，即時翻譯..."
+                        class="flex-1 bg-transparent border-b-2 border-amber-900 text-xl px-2 py-1 focus:outline-none uppercase placeholder-amber-700/50">
+                    <button onclick="playDictText()" id="dict-play-btn"
+                        class="bg-amber-900 text-amber-100 px-6 py-2 rounded hover:bg-amber-800 transition font-bold shadow-md whitespace-nowrap">▶
+                        自動發報</button>
+                </div>
+                <!-- 即時輸入雙排顯示區 -->
+                <div id="dict-instant-display" class="flex flex-wrap justify-center gap-4 min-h-[4rem] mb-6 w-full">
+                </div>
+
+                <div id="dict-grid"
+                    class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 text-center text-lg font-bold border-t border-amber-900/30 pt-6">
+                    <!-- 動態生成 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 模式 B：自由發報室 -->
+        <div id="tab-practice" class="tab-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">狀態：<span id="practice-status" class="text-red-400">已暫停</span></h2>
+                <div class="flex gap-2">
+                    <button onclick="clearPractice()"
+                        class="bg-amber-900 text-white px-4 py-2 rounded hover:bg-amber-800 transition font-bold text-sm md:text-base">清空紀錄</button>
+                    <button onclick="togglePractice()" id="practice-toggle-btn"
+                        class="bg-green-700 text-white px-4 md:px-6 py-2 rounded hover:bg-green-600 transition font-bold text-sm md:text-base">啟動電源</button>
+                </div>
+            </div>
+
+            <div class="paper-bg p-6 rounded-lg min-h-[200px] flex flex-col items-center justify-center relative">
+                <div class="text-sm absolute top-2 left-4 opacity-60">電文紀錄紙：</div>
+                <div id="practice-current-signal" class="text-4xl font-bold tracking-widest text-amber-900 h-10 mb-2">
+                </div>
+                <div id="practice-output"
+                    class="text-3xl font-bold text-black flex flex-wrap justify-center min-h-[40px] w-full break-all px-4">
+                </div>
+            </div>
+        </div>
+
+        <!-- 模式 C：特快車任務 -->
+        <div id="tab-game" class="tab-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">分數：<span id="game-score" class="text-yellow-400 text-2xl">0</span></h2>
+                <div class="flex items-center gap-3">
+                    <label class="flex items-center gap-1 cursor-pointer bg-black/30 px-2 py-1 rounded">
+                        <input type="checkbox" id="game-hint-toggle" class="w-4 h-4 accent-amber-600" checked
+                            onchange="toggleHintDisplay()">
+                        <span class="text-sm font-bold opacity-90">密碼提示</span>
+                    </label>
+                    <button onclick="startGame()" id="game-start-btn"
+                        class="bg-green-700 text-white px-4 md:px-6 py-2 rounded hover:bg-green-600 transition font-bold text-sm md:text-base">開始任務</button>
+                </div>
+            </div>
+
+            <!-- 自訂單字區 -->
+            <div class="mb-4 flex gap-2">
+                <input type="text" id="custom-word-input" placeholder="新增自訂單字..."
+                    class="flex-1 bg-black/30 border border-yellow-700/50 text-white px-3 py-1 rounded focus:outline-none uppercase">
+                <button onclick="addCustomWord()"
+                    class="bg-yellow-700 text-white px-4 py-1 rounded hover:bg-yellow-600 transition font-bold text-sm whitespace-nowrap">＋加入題庫</button>
+            </div>
+
+            <div id="train-container" class="train-scene paused mb-4">
+                <div class="track"></div>
+                <div class="smoke">☁️</div>
+                <div class="smoke">☁️</div>
+                <div class="train">🚂</div>
+                <div id="game-status-text"
+                    class="hidden absolute inset-0 bg-red-900/80 flex items-center justify-center text-white text-3xl font-bold z-10">
+                </div>
+            </div>
+
+            <div class="paper-bg p-4 rounded-lg flex flex-col items-center justify-center relative">
+                <div class="text-center w-full">
+                    <div class="text-sm opacity-60 mb-1">目標電文：</div>
+                    <div id="game-target-word" class="text-4xl font-bold text-amber-900 tracking-[0.2em] mb-1">---</div>
+                    <div id="game-target-hint" class="text-xl font-bold text-amber-900/50 tracking-[0.3em] mb-4 h-6">
+                    </div>
+
+                    <div class="flex justify-between w-full border-t border-amber-900/30 pt-3">
+                        <div class="w-1/2 text-center border-r border-amber-900/30">
+                            <div class="text-xs opacity-60">目前解析字元</div>
+                            <div id="game-parsed-chars" class="text-2xl font-bold text-green-700 h-8"></div>
+                        </div>
+                        <div class="w-1/2 text-center">
+                            <div class="text-xs opacity-60">正在發送訊號</div>
+                            <div id="game-current-signal" class="text-2xl font-bold text-amber-900 h-8 tracking-widest">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 發報區 -->
+        <div id="keyer-section"
+            class="mt-4 flex flex-col items-center border-t border-yellow-700/50 pt-6 opacity-50 pointer-events-none transition-opacity duration-300">
+            <p class="mb-4 text-center text-sm font-bold text-yellow-500 bg-black/50 px-4 py-2 rounded">
+                💡 提示：短按為「點(.)」，長按為「劃(-)」<br>
+                輸入完一個字母的點劃後，<span class="text-green-400">停頓 0.6 秒不按</span>，系統就會自動送出結算！
+            </p>
+            <p class="mb-4 text-center text-sm opacity-80">使用 <kbd
+                    class="bg-gray-800 px-2 py-1 rounded border border-gray-600">空白鍵</kbd> 或點擊下方黃銅電鍵</p>
+            <div class="w-32 h-32 md:w-40 md:h-40 relative flex justify-center items-center">
+                <button id="telegraphBtn"
+                    class="telegraph-btn w-24 h-24 md:w-32 md:h-32 cursor-pointer outline-none"></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const morseDict = {
+            'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.',
+            'G': '--.', 'H': '....', 'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..',
+            'M': '--', 'N': '-.', 'O': '---', 'P': '.--.', 'Q': '--.-', 'R': '.-.',
+            'S': '...', 'T': '-', 'U': '..-', 'V': '...-', 'W': '.--', 'X': '-..-',
+            'Y': '-.--', 'Z': '--..', '0': '-----', '1': '.----', '2': '..---',
+            '3': '...--', '4': '....-', '5': '.....', '6': '-....', '7': '--...',
+            '8': '---..', '9': '----.'
+        };
+        const reverseDict = Object.fromEntries(Object.entries(morseDict).map(([k, v]) => [v, k]));
+
+        const DOT_MS = 200;
+        const CHAR_PAUSE_MS = 600;
+        const WORD_PAUSE_MS = 1500;
+        const FREQUENCY = 600;
+
+        let currentMode = 'dictionary';
+        let practiceActive = false;
+        let gameActive = false;
+        let score = 0;
+
+        let pressStartTime = 0;
+        let currentSignal = "";
+        let charTimer = null;
+        let wordTimer = null;
+
+        let targetWord = "";
+        let targetChars = [];
+        let parsedCharsCount = 0;
+        const gameWords = ['CAT', 'DOG', 'SUN', 'TEA', 'TRAIN', 'STEAM', 'COAL', 'RAIL', 'TRACK', 'IRON', 'ENGINE', 'TICKET', 'STATION', 'EXPRESS'];
+
+        const btn = document.getElementById('telegraphBtn');
+        const keyerSection = document.getElementById('keyer-section');
+
+        // 初始化字典表
+        const dictGrid = document.getElementById('dict-grid');
+        Object.keys(morseDict).forEach(char => {
+            const div = document.createElement('div');
+            div.className = 'p-2 border border-amber-900/20 rounded';
+            div.innerHTML = `<span class="text-xl">${char}</span><br><span class="text-sm opacity-70">${morseDict[char]}</span>`;
+            dictGrid.appendChild(div);
+        });
+
+        // 字典即時輸入翻譯 (英文字母與密碼上下對照)
+        document.getElementById('dict-input').addEventListener('input', function (e) {
+            const text = e.target.value.toUpperCase();
+            const display = document.getElementById('dict-instant-display');
+            display.innerHTML = '';
+
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const div = document.createElement('div');
+                div.className = "flex flex-col items-center justify-center";
+
+                if (char === ' ') {
+                    div.innerHTML = `<span class="w-6"></span>`;
+                } else if (morseDict[char]) {
+                    div.innerHTML = `<span class="text-2xl text-amber-900 font-bold">${char}</span><span class="text-lg text-amber-700 tracking-widest">${morseDict[char]}</span>`;
+                } else {
+                    div.innerHTML = `<span class="text-2xl text-amber-900 font-bold">${char}</span><span class="text-lg text-red-600 font-bold">?</span>`;
+                }
+                display.appendChild(div);
+            }
+        });
+
+        function switchTab(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+
+            document.getElementById(`tab-${mode}`).classList.add('active');
+            document.getElementById(`nav-${mode}`).classList.add('active');
+
+            if (mode === 'dictionary') {
+                keyerSection.classList.add('opacity-50', 'pointer-events-none');
+                if (practiceActive) togglePractice();
+                if (gameActive) gameOver(false);
+            } else {
+                keyerSection.classList.remove('opacity-50', 'pointer-events-none');
+            }
+        }
+
+        let audioCtx;
+        let oscillator;
+        let gainNode;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                gainNode = audioCtx.createGain();
+                gainNode.connect(audioCtx.destination);
+                gainNode.gain.value = 0;
+                oscillator = audioCtx.createOscillator();
+                oscillator.type = 'sine';
+                oscillator.frequency.value = FREQUENCY;
+                oscillator.connect(gainNode);
+                oscillator.start();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playBeep() {
+            initAudio();
+            gainNode.gain.setTargetAtTime(1, audioCtx.currentTime, 0.01);
+        }
+
+        function stopBeep() {
+            if (gainNode) {
+                gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, 0.01);
+            }
+        }
+
+        function handlePressDown(e) {
+            if (e && e.type === 'keydown') {
+                if (e.code !== 'Space') return;
+                e.preventDefault();
+                if (e.repeat) return;
+            }
+            if (e && e.type === 'touchstart') e.preventDefault();
+
+            if (currentMode === 'dictionary' || (!practiceActive && !gameActive)) return;
+
+            pressStartTime = Date.now();
+            clearTimeout(charTimer);
+            clearTimeout(wordTimer);
+            btn.classList.add('pressed');
+            playBeep();
+        }
+
+        function handlePressUp(e) {
+            if (e && e.type === 'keyup' && e.code !== 'Space') return;
+            if (e && (e.type === 'touchend' || e.type === 'mouseup')) e.preventDefault();
+
+            if (!pressStartTime) return;
+
+            const duration = Date.now() - pressStartTime;
+            pressStartTime = 0;
+            btn.classList.remove('pressed');
+            stopBeep();
+
+            if (duration < DOT_MS) {
+                currentSignal += ".";
+            } else {
+                currentSignal += "-";
+            }
+
+            updateSignalDisplay();
+            charTimer = setTimeout(processSignal, CHAR_PAUSE_MS);
+        }
+
+        btn.addEventListener('mousedown', handlePressDown);
+        btn.addEventListener('mouseup', handlePressUp);
+        btn.addEventListener('mouseleave', handlePressUp);
+        btn.addEventListener('touchstart', handlePressDown, { passive: false });
+        btn.addEventListener('touchend', handlePressUp, { passive: false });
+
+        window.addEventListener('keydown', handlePressDown);
+        window.addEventListener('keyup', handlePressUp);
+
+        function updateSignalDisplay() {
+            if (currentMode === 'practice') {
+                document.getElementById('practice-current-signal').innerText = currentSignal;
+            } else if (currentMode === 'game') {
+                document.getElementById('game-current-signal').innerText = currentSignal;
+            }
+        }
+
+        function processSignal() {
+            if (!currentSignal) return;
+
+            const parsedChar = reverseDict[currentSignal] || '?';
+
+            if (currentMode === 'practice') {
+                const outDiv = document.getElementById('practice-output');
+                outDiv.innerHTML += `<span class="${parsedChar === '?' ? 'text-red-500' : ''}">${parsedChar}</span>`;
+                currentSignal = "";
+                updateSignalDisplay();
+                wordTimer = setTimeout(() => {
+                    outDiv.innerHTML += `<span>&nbsp;&nbsp;</span>`;
+                }, WORD_PAUSE_MS);
+
+            } else if (currentMode === 'game' && gameActive) {
+                const expectedChar = targetChars[parsedCharsCount];
+
+                if (parsedChar === expectedChar) {
+                    parsedCharsCount++;
+                    document.getElementById('game-parsed-chars').innerText = targetWord.substring(0, parsedCharsCount);
+                    currentSignal = "";
+                    updateSignalDisplay();
+
+                    if (parsedCharsCount === targetChars.length) {
+                        gameActive = false;
+                        clearTimeout(charTimer);
+                        score += 10;
+                        document.getElementById('game-score').innerText = score;
+
+                        const container = document.getElementById('train-container');
+                        container.classList.add('success-flash');
+                        setTimeout(() => container.classList.remove('success-flash'), 500);
+
+                        setTimeout(() => {
+                            gameActive = true;
+                            nextGameWord();
+                        }, 1000);
+                    }
+                } else {
+                    gameOver(true);
+                }
+            }
+        }
+
+        function togglePractice() {
+            practiceActive = !practiceActive;
+            const btn = document.getElementById('practice-toggle-btn');
+            const status = document.getElementById('practice-status');
+
+            if (practiceActive) {
+                btn.innerText = "切斷電源";
+                btn.classList.replace('bg-green-700', 'bg-red-700');
+                btn.classList.replace('hover:bg-green-600', 'hover:bg-red-600');
+                status.innerText = "連線中 (可發報)";
+                status.classList.replace('text-red-400', 'text-green-400');
+                initAudio();
+            } else {
+                btn.innerText = "啟動電源";
+                btn.classList.replace('bg-red-700', 'bg-green-700');
+                btn.classList.replace('hover:bg-red-600', 'hover:bg-green-600');
+                status.innerText = "已暫停";
+                status.classList.replace('text-green-400', 'text-red-400');
+            }
+        }
+
+        function clearPractice() {
+            document.getElementById('practice-output').innerHTML = "";
+            currentSignal = "";
+            updateSignalDisplay();
+        }
+
+        function addCustomWord() {
+            const input = document.getElementById('custom-word-input');
+            const word = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            if (word) {
+                gameWords.push(word);
+                input.value = "";
+                alert(`已將 "${word}" 加入題庫！`);
+            }
+        }
+
+        function startGame() {
+            gameActive = true;
+            score = 0;
+            document.getElementById('game-score').innerText = score;
+            document.getElementById('train-container').classList.remove('paused');
+            document.getElementById('game-status-text').classList.add('hidden');
+
+            const startBtn = document.getElementById('game-start-btn');
+            startBtn.innerText = "任務進行中...";
+            startBtn.disabled = true;
+            startBtn.classList.replace('bg-green-700', 'bg-gray-700');
+            document.getElementById('game-hint-toggle').disabled = true;
+
+            initAudio();
+            nextGameWord();
+        }
+
+        function toggleHintDisplay() {
+            const hintToggle = document.getElementById('game-hint-toggle').checked;
+            const hintEl = document.getElementById('game-target-hint');
+            if (hintToggle && targetChars.length > 0) {
+                hintEl.innerText = targetChars.map(c => morseDict[c]).join('   ');
+            } else {
+                hintEl.innerText = "";
+            }
+        }
+
+        function nextGameWord() {
+            const maxLen = score < 30 ? 4 : (score < 60 ? 5 : 10);
+            const availableWords = gameWords.filter(w => w.length <= maxLen);
+            targetWord = availableWords[Math.floor(Math.random() * availableWords.length)];
+            targetChars = targetWord.split('');
+            parsedCharsCount = 0;
+            currentSignal = "";
+
+            document.getElementById('game-target-word').innerText = targetWord;
+            document.getElementById('game-parsed-chars').innerText = "";
+
+            toggleHintDisplay();
+            updateSignalDisplay();
+        }
+
+        function gameOver(showEffect) {
+            gameActive = false;
+            currentSignal = "";
+            clearTimeout(charTimer);
+
+            const container = document.getElementById('train-container');
+            container.classList.add('paused');
+
+            if (showEffect) {
+                container.classList.add('game-over-flash');
+                setTimeout(() => container.classList.remove('game-over-flash'), 500);
+                const statusTxt = document.getElementById('game-status-text');
+                statusTxt.innerText = "任務失敗 (Game Over)";
+                statusTxt.classList.replace('bg-green-900/80', 'bg-red-900/80');
+                statusTxt.classList.remove('hidden');
+            }
+
+            const startBtn = document.getElementById('game-start-btn');
+            startBtn.innerText = "重新開始";
+            startBtn.disabled = false;
+            startBtn.classList.replace('bg-gray-700', 'bg-green-700');
+            document.getElementById('game-hint-toggle').disabled = false;
+        }
+
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        async function playDictText() {
+            const input = document.getElementById('dict-input');
+            const playBtn = document.getElementById('dict-play-btn');
+            const text = input.value.toUpperCase().replace(/[^A-Z0-9\s]/g, '');
+
+            if (!text) return;
+
+            input.disabled = true;
+            playBtn.disabled = true;
+            playBtn.innerText = "發報中...";
+            playBtn.classList.replace('bg-amber-900', 'bg-gray-600');
+            initAudio();
+
+            const unit = 120;
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                if (char === ' ') {
+                    await sleep(unit * 7);
+                    continue;
+                }
+
+                const code = morseDict[char];
+                if (!code) continue;
+
+                for (let j = 0; j < code.length; j++) {
+                    playBeep();
+                    await sleep(code[j] === '.' ? unit : unit * 3);
+                    stopBeep();
+                    await sleep(unit);
+                }
+                await sleep(unit * 3);
+            }
+
+            input.disabled = false;
+            playBtn.disabled = false;
+            playBtn.innerText = "▶ 自動發報";
+            playBtn.classList.replace('bg-gray-600', 'bg-amber-900');
+        }
+    </script>
+</body>
+
+</html>
